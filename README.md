@@ -1,8 +1,8 @@
 # Polynomial and Arithmetic Expression Compiler
 
 This program provides two main functionalities:
-  1. **Polynomial Evaluation** with variables `x` and `y`
-  2. **Arithmetic Expression Parsing and Evaluation**
+1. **Polynomial Evaluation** with variables `x` and `y`
+2. **Arithmetic Expression Parsing and Evaluation**
 
 ---
 
@@ -26,7 +26,7 @@ This program provides two main functionalities:
 ## How to Run
 
 ### 1. Compile the Program
-Use a C++ compiler to compile the program. For example:                    
+Use a C++ compiler to compile the program. For example:
 ```bash
 g++ -std=c++17 complier.cpp -o compiler
 ```
@@ -115,3 +115,11 @@ MUL t0 2 -> t1
 - A C++ compiler (e.g., `g++`).
 
 ---
+
+## Screenshots
+
+### Polynomial Evaluation Example
+![Polynomial Mode](img1.png)
+
+### Arithmetic Mode Example
+![Arithmetic Mode Demonstration](img2.png)
