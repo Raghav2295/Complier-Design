@@ -7,14 +7,16 @@
 #include <sstream>
 #include <algorithm>
 
-struct Instruction{
+struct Instruction
+{
     std::string operation;
     std::string operand1;
     std::string operand2;
     std::string result;
 };
 
-class SimpleParser{
+class SimpleParser
+{
 private:
     int tempVarCount;
     std::vector<Instruction> instructions;
@@ -152,8 +154,10 @@ public:
     }
 };
 
-int main(){
-    try{
+int main()
+{
+    try
+    {
         int choice;
         std::cout << "Enter 1 for arithmetic manipulations or 2 for polynomial manipulations: ";
         std::cin >> choice;
