@@ -1,0 +1,158 @@
+#include <iostream>
+#include <cctype>
+#include <string>
+#include <vector>
+#include <stdexcept>
+#include <cmath>
+#include <sstream>
+
+struct Instruction
+{
+    std::string operation;
+    std::string operand1;
+    std::string operand2;
+    std::string result;
+};
+
+class SimpleParser
+{
+private:
+    int tempVarCount;
+    std::vector<Instruction> instructions;
+
+    std::string getTempVar()
+    {
+        return "temp" + std::to_string(tempVarCount++);
+    }
+
+    void addInstruction(const std::string &operation, const std::string &operand1, const std::string &operand2, const std::string &result)
+    {
+        instructions.push_back({operation, operand1, operand2, result});
+    }
+
+public:
+    SimpleParser() : tempVarCount(0) {}
+
+    void parseAndGenerateArithmeticInstructions(double a, double b)
+    {
+        // Generate instructions for basic arithmetic operations
+        std::string temp1 = getTempVar();
+        addInstruction("ADD", std::to_string(a), std::to_string(b), temp1); // a + b
+        std::string temp2 = getTempVar();
+        addInstruction("SUB", std::to_string(a), std::to_string(b), temp2); // a - b
+        std::string temp3 = getTempVar();
+        addInstruction("MUL", std::to_string(a), std::to_string(b), temp3); // a * b
+        std::string temp4 = getTempVar();
+        addInstruction("DIV", std::to_string(a), std::to_string(b), temp4); // a / b
+    }
+
+    void parseAndGeneratePolynomialInstructions(const std::string &polynomial, double x, double y)
+    {
+        std::string xStr = "x";
+        std::string yStr = "y";
+
+        // Split polynomial into terms
+        std::istringstream iss(polynomial);
+        std::string term;
+        while (std::getline(iss, term, '+'))
+        {
+            // Parse each term (simplified for demonstration)
+            if (term.find("x^2") != std::string::npos)
+            {
+                std::string temp1 = getTempVar();
+                addInstruction("MUL", xStr, xStr, temp1); // x * x
+                std::string temp2 = getTempVar();
+                addInstruction("MUL", term.substr(0, term.find("x^2")), temp1, temp2); // coefficient * x^2
+            }
+            else if (term.find("y^2") != std::string::npos)
+            {
+                std::string temp1 = getTempVar();
+                addInstruction("MUL", yStr, yStr, temp1); // y * y
+                std::string temp2 = getTempVar();
+                addInstruction("MUL", term.substr(0, term.find("y^2")), temp1, temp2); // coefficient * y^2
+            }
+            else if (term.find("x") != std::string::npos)
+            {
+                std::string temp = getTempVar();
+                addInstruction("MUL", term.substr(0, term.find("x")), xStr, temp); // coefficient * x
+            }
+            else if (term.find("y") != std::string::npos)
+            {
+                std::string temp = getTempVar();
+                addInstruction("MUL", term.substr(0, term.find("y")), yStr, temp); // coefficient * y
+            }
+            else
+            {
+                // Constant term
+                std::string temp = getTempVar();
+                addInstruction("ADD", term, "0", temp);
+            }
+        }
+
+        // Final result
+        addInstruction("EQUALS", "result", "0", "result"); // Check if it equals 0
+    }
+
+    void printInstructions() const
+    {
+        std::cout << "Generated Instructions:\n";
+        for (const auto &instr : instructions)
+        {
+            std::cout << instr.operation << " " << instr.operand1;
+            if (!instr.operand2.empty())
+            {
+                std::cout << " " << instr.operand2;
+            }
+            std::cout << " -> " << instr.result << "\n";
+        }
+    }
+};
+
+int main()
+{
+    try
+    {
+        int choice;
+        std::cout << "Enter 1 for arithmetic manipulations or 2 for polynomial manipulations: ";
+        std::cin >> choice;
+
+        if (choice == 1)
+        {
+            double a, b;
+            std::cout << "Enter two numbers (a and b): ";
+            std::cin >> a >> b;
+
+            SimpleParser parser;
+            parser.parseAndGenerateArithmeticInstructions(a, b);
+            parser.printInstructions();
+        }
+        else if (choice == 2)
+        {
+            double x, y;
+            std::string polynomial;
+
+            std::cin.ignore(); // Clear the input buffer
+            std::cout << "Enter the polynomial (e.g., 3x^2+2y^2-12x-12y+30): ";
+            std::getline(std::cin, polynomial);
+
+            std::cout << "Enter value for x: ";
+            std::cin >> x;
+            std::cout << "Enter value for y: ";
+            std::cin >> y;
+
+            SimpleParser parser;
+            parser.parseAndGeneratePolynomialInstructions(polynomial, x, y);
+            parser.printInstructions();
+        }
+        else
+        {
+            std::cerr << "Invalid choice. Please enter 1 or 2." << std::endl;
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << std::endl;
+    }
+
+    return 0;
+}
