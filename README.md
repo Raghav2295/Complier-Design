@@ -119,7 +119,7 @@ MUL t0 2 -> t1
 ## Screenshots
 
 ### Polynomial Evaluation Example
-![Polynomial Mode](img1.png)
+![Polynomial Mode](img4.png)
 
 ### Arithmetic Mode Example
-![Arithmetic Mode Demonstration](img2.png)
+![Arithmetic Mode Demonstration](img3.png)
