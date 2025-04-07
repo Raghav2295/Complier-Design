@@ -6,287 +6,231 @@
 #include <cmath>
 #include <sstream>
 #include <algorithm>
+using namespace std;
 
 // Structure to represent a custom instruction
-struct Instruction
-{
-    std::string op;    // Operation name (e.g., "ADD", "MUL", etc.)
-    std::string arg1;  // First operand
-    std::string arg2;  // Second operand (optional)
-    std::string dest;  // Destination temporary variable
-};
+typedef struct Instruction {
+    string op;    // Operation name (e.g., "ADD", "MUL", etc.)
+    string arg1;  // First operand
+    string arg2;  // Second operand (optional)
+    string dest;  // Destination temporary variable
+} Instruction;
 
-class ExpressionParser
-{
+class ExpressionParser {
 private:
-    const char *exprInput;             // Pointer to input expression
-    int index;                         // Current position in the input
-    int tempCount;                     // Counter for generating temp variable names
-    std::vector<Instruction> instrList; // List of generated instructions
+    const char *exprInput;             // Input expression
+    int index;                         // Current parsing position
+    int tempCount;                     // Counter for temp variables
+    vector<Instruction> instrList;     // Generated instructions
 
-    // Get current character
+    // Utilities
     char currentChar() const { return exprInput[index]; }
-
-    // Advance to next character
     void advanceChar() { index++; }
-
-    // Skip whitespace characters
-    void skipSpaces()
-    {
-        while (currentChar() == ' ')
-            advanceChar();
+    void skipSpaces() {
+        while (currentChar() == ' ') advanceChar();
     }
+    string newTempVar() { return "t" + to_string(tempCount++); }
 
-    // Generate a new temporary variable name
-    std::string newTempVar()
-    {
-        return "t" + std::to_string(tempCount++);
-    }
-
-    // Parse a numeric literal
-    std::string parseNumber()
-    {
+    // Parse numeric literal
+    string parseNumber() {
         skipSpaces();
-        std::string numStr;
-        while (isdigit(currentChar()) || currentChar() == '.')
-        {
-            numStr += currentChar();
+        string num;
+        while (isdigit(currentChar()) || currentChar() == '.') {
+            num += currentChar();
             advanceChar();
         }
-        return numStr;
+        return num;
     }
 
-    // Parse factor: number, variable, or parenthesized expression
-    std::string parseFactor()
-    {
+    // Parse factor: number, variable, parenthesis, or raghav(a,b)
+    string parseFactor() {
         skipSpaces();
-        std::string resultVar;
+        string result;
 
-        if (currentChar() == '(')
-        {
-            advanceChar(); // Skip '('
-            resultVar = parseExpression(); // Parse inside parentheses
+        if (currentChar() == '(') {
+            advanceChar();
+            result = parseExpression();
             if (currentChar() == ')') advanceChar();
-            else throw std::runtime_error("Missing closing parenthesis");
+            else throw runtime_error("Missing closing parenthesis");
         }
-        else if (isdigit(currentChar()) || currentChar() == '.')
-        {
-            // Numeric literal
-            resultVar = parseNumber();
-            skipSpaces();
-            // Implicit MUL if followed by var or '('
-            if (isalpha(currentChar()) || currentChar() == '(')
-            {
-                std::string rightVar = parseFactor();
-                std::string tempVar = newTempVar();
-                // MUL: multiply resultVar and rightVar -> tempVar
-                instrList.push_back({"MUL", resultVar, rightVar, tempVar});
-                resultVar = tempVar;
-            }
-        }
-        else if (isalpha(currentChar()))
-        {
-            // Variable name
-            while (isalpha(currentChar()))
-            {
-                resultVar += currentChar();
+        else if (isalpha(currentChar())) {
+            // Parse identifier
+            string ident;
+            while (isalpha(currentChar())) {
+                ident += currentChar();
                 advanceChar();
             }
             skipSpaces();
-            // Implicit MUL if followed by var or '('
-            if (isalpha(currentChar()) || currentChar() == '(')
-            {
-                std::string rightVar = parseFactor();
-                std::string tempVar = newTempVar();
-                // MUL: multiply resultVar and rightVar -> tempVar
-                instrList.push_back({"MUL", resultVar, rightVar, tempVar});
-                resultVar = tempVar;
+            // Handle raghav(a,b)
+            if (ident == "raghav" && currentChar() == '(') {
+                advanceChar(); // skip '('
+                string arg1 = parseExpression();
+                skipSpaces();
+                if (currentChar() == ',') advanceChar();
+                else throw runtime_error("Expected ',' in raghav");
+                string arg2 = parseExpression();
+                skipSpaces();
+                if (currentChar() == ')') advanceChar();
+                else throw runtime_error("Missing closing parenthesis in raghav");
+                // Emit RAGHAV instruction: compute (a + b)^2
+                string temp = newTempVar();
+                instrList.push_back({"RAGHAV", arg1, arg2, temp});
+                result = temp;
+            }
+            else {
+                // Regular variable
+                result = ident;
+                // Implicit multiplication
+                if (isalpha(currentChar()) || currentChar() == '(') {
+                    string right = parseFactor();
+                    string temp = newTempVar();
+                    instrList.push_back({"MUL", result, right, temp});
+                    result = temp;
+                }
             }
         }
-        else
-        {
-            throw std::runtime_error(std::string("Invalid character: ") + currentChar());
+        else if (isdigit(currentChar()) || currentChar() == '.') {
+            result = parseNumber();
+            skipSpaces();
+            // Implicit multiplication
+            if (isalpha(currentChar()) || currentChar() == '(') {
+                string right = parseFactor();
+                string temp = newTempVar();
+                instrList.push_back({"MUL", result, right, temp});
+                result = temp;
+            }
         }
-
-        return resultVar;
+        else {
+            throw runtime_error(string("Invalid character: ") + currentChar());
+        }
+        return result;
     }
 
-    // Parse exponentiation '^'
-    std::string parsePower()
-    {
-        std::string baseVar = parseFactor();
+    // Parse exponentiation
+    string parsePower() {
+        string base = parseFactor();
         skipSpaces();
-        if (currentChar() == '^')
-        {
-            advanceChar(); // Skip '^'
-            std::string expVar = parseFactor();
-            std::string tempVar = newTempVar();
-            // POW: raise baseVar to expVar -> tempVar
-            instrList.push_back({"POW", baseVar, expVar, tempVar});
-            return tempVar;
+        if (currentChar() == '^') {
+            advanceChar();
+            string exp = parseFactor();
+            string temp = newTempVar();
+            instrList.push_back({"POW", base, exp, temp});
+            return temp;
         }
-        return baseVar;
+        return base;
     }
 
-    // Parse multiplication and division
-    std::string parseTerm()
-    {
-        std::string leftVar = parsePower();
+    // Parse * and /
+    string parseTerm() {
+        string left = parsePower();
         skipSpaces();
-        while (currentChar() == '*' || currentChar() == '/')
-        {
-            char opChar = currentChar();
-            advanceChar(); // Skip operator
-            std::string rightVar = parsePower();
-            std::string tempVar = newTempVar();
-            if (opChar == '*')
-            {
-                // MUL: multiply leftVar and rightVar -> tempVar
-                instrList.push_back({"MUL", leftVar, rightVar, tempVar});
-            }
-            else
-            {
-                // DIV: divide leftVar by rightVar -> tempVar
-                instrList.push_back({"DIV", leftVar, rightVar, tempVar});
-            }
-            leftVar = tempVar;
+        while (currentChar() == '*' || currentChar() == '/') {
+            char op = currentChar(); advanceChar();
+            string right = parsePower();
+            string temp = newTempVar();
+            instrList.push_back({op=='*'?"MUL":"DIV", left, right, temp});
+            left = temp;
             skipSpaces();
         }
-        return leftVar;
+        return left;
     }
 
-    // Parse addition and subtraction
-    std::string parseExpression()
-    {
-        std::string leftVar = parseTerm();
+    // Parse + and -
+    string parseExpression() {
+        string left = parseTerm();
         skipSpaces();
-        while (currentChar() == '+' || currentChar() == '-')
-        {
-            char opChar = currentChar();
-            advanceChar(); // Skip operator
-            std::string rightVar = parseTerm();
-            std::string tempVar = newTempVar();
-            if (opChar == '+')
-            {
-                // ADD: add leftVar and rightVar -> tempVar
-                instrList.push_back({"ADD", leftVar, rightVar, tempVar});
-            }
-            else
-            {
-                // SUB: subtract rightVar from leftVar -> tempVar
-                instrList.push_back({"SUB", leftVar, rightVar, tempVar});
-            }
-            leftVar = tempVar;
+        while (currentChar() == '+' || currentChar() == '-') {
+            char op = currentChar(); advanceChar();
+            string right = parseTerm();
+            string temp = newTempVar();
+            instrList.push_back({op=='+'?"ADD":"SUB", left, right, temp});
+            left = temp;
             skipSpaces();
         }
-        return leftVar;
+        return left;
     }
 
 public:
-    // Constructor: initialize parser with expression string
-    ExpressionParser(const std::string &expr) : exprInput(expr.c_str()), index(0), tempCount(0) {}
+    ExpressionParser(const string &expr)
+        : exprInput(expr.c_str()), index(0), tempCount(0) {}
 
-    // Parse the expression and build instruction list
-    void parse()
-    {
+    void parse() {
         parseExpression();
         skipSpaces();
-        if (currentChar() != '\0')
-            throw std::runtime_error("Unexpected input after expression");
+        if (currentChar() != '\0') throw runtime_error("Unexpected input after expression");
     }
 
-    // Print generated instructions
-    void printInstructions() const
-    {
-        std::cout << "Generated Instructions:\n";
-        for (const auto &ins : instrList)
-        {
-            std::cout << ins.op << " " << ins.arg1;
-            if (!ins.arg2.empty()) std::cout << " " << ins.arg2;
-            std::cout << " -> " << ins.dest << "\n";
+    void printInstructions() const {
+        cout << "Generated Instructions:\n";
+        for (const auto &ins : instrList) {
+            cout << ins.op << " " << ins.arg1;
+            if (!ins.arg2.empty()) cout << " " << ins.arg2;
+            cout << " -> " << ins.dest << "\n";
         }
     }
 
-    // Access instruction list
-    const std::vector<Instruction> &getInstructions() const { return instrList; }
+    const vector<Instruction>& getInstructions() const { return instrList; }
 };
 
-// Get numeric value of operand (literal or variable)
-double operandValue(const std::string &op, const std::unordered_map<std::string,double> &varMap)
-{
-    if (isdigit(op[0]) || (op[0]=='-' && isdigit(op[1])))
-        return std::stod(op);
-    return varMap.at(op);
+// Convert operand to numeric value
+static double operandValue(const string &op, const unordered_map<string,double> &vars) {
+    if (isdigit(op[0]) || (op[0]=='-' && isdigit(op[1]))) return stod(op);
+    return vars.at(op);
 }
 
-// Evaluate a single instruction
-double evalInstruction(const Instruction &ins, const std::unordered_map<std::string,double> &varMap)
-{
-    double v1 = operandValue(ins.arg1, varMap);
-    double v2 = ins.arg2.empty() ? 0 : operandValue(ins.arg2, varMap);
-    if (ins.op == "ADD") return v1 + v2;
-    if (ins.op == "SUB") return v1 - v2;
-    if (ins.op == "MUL") return v1 * v2;
-    if (ins.op == "DIV") return v1 / v2;
-    if (ins.op == "POW") return std::pow(v1, v2);
-    throw std::runtime_error("Unknown operation: " + ins.op);
+// Evaluate one instruction
+static double evalInstruction(const Instruction &ins, const unordered_map<string,double> &vars) {
+    double v1 = operandValue(ins.arg1, vars);
+    double v2 = ins.arg2.empty()?0:operandValue(ins.arg2, vars);
+    if (ins.op == "ADD")  return v1 + v2;
+    if (ins.op == "SUB")  return v1 - v2;
+    if (ins.op == "MUL")  return v1 * v2;
+    if (ins.op == "DIV")  return v1 / v2;
+    if (ins.op == "POW")  return pow(v1, v2);
+    if (ins.op == "RAGHAV") return pow(v1 + v2, 2); // Compute (a + b)^2
+    throw runtime_error("Unknown operation: " + ins.op);
 }
 
-int main()
-{
-    try
-    {
-        int modeSelection;
-        std::cout << "Select mode (1: arithmetic, 2: polynomial): ";
-        std::cin >> modeSelection;
-        std::cin.ignore(); // Ignore newline
+int main() {
+    try {
+        int mode;
+        cout << "Select mode (1: arithmetic, 2: polynomial): ";
+        cin >> mode; cin.ignore();
 
-        std::string exprStr;
-        std::cout << (modeSelection == 1 ? "Enter arithmetic expression: " : "Enter polynomial expression: ");
-        std::getline(std::cin, exprStr);
+        cout << (mode==1?"Enter arithmetic expression: ":"Enter polynomial expression: ");
+        string expr; getline(cin, expr);
 
-        ExpressionParser parser(exprStr);
+        ExpressionParser parser(expr);
         parser.parse();
 
-        if (modeSelection == 2)
-        {
-            std::unordered_map<std::string,double> varValues;
-            // Prompt user for each variable used
-            for (const auto &ins : parser.getInstructions())
-            {
-                for (const auto &operand : {ins.arg1, ins.arg2})
-                {
-                    if (!operand.empty() && isalpha(operand[0]) && operand.size() == 1
-                        && !varValues.count(operand))
-                    {
-                        std::cout << "Enter value for " << operand << ": ";
-                        std::cin >> varValues[operand];
+        if (mode == 2) {
+            unordered_map<string,double> vars;
+            // Prompt for variables
+            for (const auto &ins : parser.getInstructions()) {
+                for (const auto &op : {ins.arg1, ins.arg2}) {
+                    if (!op.empty() && isalpha(op[0]) && op.size()==1 && !vars.count(op)) {
+                        cout << "Enter value for " << op << ": ";
+                        cin >> vars[op];
                     }
                 }
             }
-            // Evaluate and print results
-            std::cout << "Instructions and results:\n";
-            for (const auto &ins : parser.getInstructions())
-            {
-                double res = evalInstruction(ins, varValues);
-                varValues[ins.dest] = res;
-                std::cout << ins.op << " " << ins.arg1;
-                if (!ins.arg2.empty()) std::cout << " " << ins.arg2;
-                std::cout << " -> " << ins.dest << " = " << res << "\n";
+            // Evaluate and display
+            cout << "Instructions and results:\n";
+            for (const auto &ins : parser.getInstructions()) {
+                double res = evalInstruction(ins, vars);
+                vars[ins.dest] = res;
+                cout << ins.op << " " << ins.arg1;
+                if (!ins.arg2.empty()) cout << " " << ins.arg2;
+                cout << " -> " << ins.dest << " = " << res << "\n";
             }
             // Final result
-            std::string finalDest = parser.getInstructions().back().dest;
-            std::cout << "Final result: " << varValues[finalDest] << "\n";
-        }
-        else
-        {
-            // Just print instructions for arithmetic mode
+            string last = parser.getInstructions().back().dest;
+            cout << "Final result: " << vars[last] << "\n";
+        } else {
             parser.printInstructions();
         }
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << e.what() << "\n";
+    } catch (const exception &e) {
+        cerr << e.what() << "\n";
     }
     return 0;
 }
