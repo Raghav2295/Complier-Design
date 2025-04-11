@@ -6,6 +6,7 @@
 #include <cmath>
 #include <sstream>
 #include <algorithm>
+#include <fstream>
 using namespace std;
 
 typedef struct Instruction {
@@ -173,10 +174,122 @@ public:
     }
 
     const vector<Instruction>& getInstructions() const { return instrList; }
+
+    void generateAssembly() const {
+        cout << "Generated Assembly Code:\n";
+        for (const auto &ins : instrList) {
+            if (ins.op == "ADD") {
+                cout << "LOAD " << ins.arg1 << "\n";
+                cout << "ADD " << ins.arg2 << "\n";
+                cout << "STORE " << ins.dest << "\n";
+            } else if (ins.op == "SUB") {
+                cout << "LOAD " << ins.arg1 << "\n";
+                cout << "SUB " << ins.arg2 << "\n";
+                cout << "STORE " << ins.dest << "\n";
+            } else if (ins.op == "MUL") {
+                cout << "LOAD " << ins.arg1 << "\n";
+                cout << "MUL " << ins.arg2 << "\n";
+                cout << "STORE " << ins.dest << "\n";
+            } else if (ins.op == "DIV") {
+                cout << "LOAD " << ins.arg1 << "\n";
+                cout << "DIV " << ins.arg2 << "\n";
+                cout << "STORE " << ins.dest << "\n";
+            } else if (ins.op == "POW") {
+                cout << "LOAD " << ins.arg1 << "\n";
+                cout << "EXP " << ins.arg2 << "\n";
+                cout << "STORE " << ins.dest << "\n";
+            } else if (ins.op == "RAGHAV") {
+                cout << "LOAD " << ins.arg1 << "\n";
+                cout << "ADD " << ins.arg2 << "\n";
+                cout << "MUL " << ins.arg1 << "\n"; // Square the result
+                cout << "STORE " << ins.dest << "\n";
+            } else {
+                throw runtime_error("Unknown operation: " + ins.op);
+            }
+        }
+    }
+
+    void saveAssemblyToFile() const {
+        string filename;
+        cout << "Enter filename to save assembly code (.asm will be added automatically): ";
+        getline(cin, filename);
+        
+        if (filename.empty()) {
+            throw runtime_error("Invalid filename");
+        }
+        
+        filename += ".asm";
+        
+        // Create the file with full path
+        ofstream outFile(filename);
+        if (!outFile.is_open()) {
+            throw runtime_error("Could not create file: " + filename);
+        }
+
+        // Write a header comment
+        outFile << "; Assembly code generated for expression\n";
+        outFile << "; Generated on: " << time(nullptr) << "\n\n";
+
+        // Add variable declarations section for polynomials
+        outFile << "; Variable declarations\n";
+        for (const auto &ins : instrList) {
+            for (const auto &op : {ins.arg1, ins.arg2}) {
+                if (!op.empty() && isalpha(op[0]) && op.size() == 1) {
+                    outFile << op << "\tDW\t0\n";
+                }
+            }
+        }
+        outFile << "\n; Code section\n";
+
+        // Write the assembly code
+        for (const auto &ins : instrList) {
+            if (ins.op == "ADD") {
+                outFile << "\tLOAD " << ins.arg1 << "\n";
+                outFile << "\tADD " << ins.arg2 << "\n";
+                outFile << "\tSTORE " << ins.dest << "\n\n";
+            } else if (ins.op == "SUB") {
+                outFile << "\tLOAD " << ins.arg1 << "\n";
+                outFile << "\tSUB " << ins.arg2 << "\n";
+                outFile << "\tSTORE " << ins.dest << "\n\n";
+            } else if (ins.op == "MUL") {
+                outFile << "\tLOAD " << ins.arg1 << "\n";
+                outFile << "\tMUL " << ins.arg2 << "\n";
+                outFile << "\tSTORE " << ins.dest << "\n\n";
+            } else if (ins.op == "DIV") {
+                outFile << "\tLOAD " << ins.arg1 << "\n";
+                outFile << "\tDIV " << ins.arg2 << "\n";
+                outFile << "\tSTORE " << ins.dest << "\n\n";
+            } else if (ins.op == "POW") {
+                outFile << "\tLOAD " << ins.arg1 << "\n";
+                outFile << "\tEXP " << ins.arg2 << "\n";
+                outFile << "\tSTORE " << ins.dest << "\n\n";
+            } else if (ins.op == "RAGHAV") {
+                outFile << "\tLOAD " << ins.arg1 << "\n";
+                outFile << "\tADD " << ins.arg2 << "\n";
+                outFile << "\tMUL " << ins.arg1 << "\n";
+                outFile << "\tSTORE " << ins.dest << "\n\n";
+            }
+        }
+
+        outFile << "\n; End of program\n";
+        outFile << "\tHLT\n";
+        
+        outFile.close();
+        
+        if (outFile.fail()) {
+            throw runtime_error("Error while writing to file: " + filename);
+        }
+        
+        cout << "Assembly code successfully saved to " << filename << endl;
+    }
 };
 
 static double operandValue(const string &op, const unordered_map<string,double> &vars) {
     if (isdigit(op[0]) || (op[0]=='-' && isdigit(op[1]))) return stod(op);
+    if (op[0] == 't') return vars.at(op); // For temp variables
+    if (vars.find(op) == vars.end()) {
+        throw runtime_error("Undefined variable: " + op);
+    }
     return vars.at(op);
 }
 
@@ -226,12 +339,40 @@ int main() {
 
             string last = parser.getInstructions().back().dest;
             cout << "Final result: " << vars[last] << "\n";
+            
+            // Add save option for mode 2
+            char saveChoice;
+            cout << "\nWould you like to save the assembly code to a file? (y/n): ";
+            cin >> saveChoice;
+            cin.ignore();
+            
+            if (tolower(saveChoice) == 'y') {
+                try {
+                    parser.saveAssemblyToFile();
+                } catch (const runtime_error& e) {
+                    cerr << "Error saving file: " << e.what() << endl;
+                }
+            }
         } else {
             parser.printInstructions();
+            parser.generateAssembly();
+            
+            char saveChoice;
+            cout << "\nWould you like to save the assembly code to a file? (y/n): ";
+            cin >> saveChoice;
+            cin.ignore(); // Clear any leftover newline
+            
+            if (tolower(saveChoice) == 'y') {
+                try {
+                    parser.saveAssemblyToFile();
+                } catch (const runtime_error& e) {
+                    cerr << "Error saving file: " << e.what() << endl;
+                }
+            }
         }
     } 
     catch (const exception &e) {
-        cerr << e.what() << "\n";
+        cerr << "Error: " << e.what() << "\n";
     }
     return 0;
 }
